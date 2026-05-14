@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}About — SimpleLife{% endblock %}
+{% block content %}
+<section class="about" data-testid="about-page">
+  <h1>About SimpleLife</h1>
+  <p>
+    SimpleLife is an illustrative life-insurance quote demo built to showcase
+    end-to-end agentic development: a real web application, a Claude-powered
+    multi-agent orchestrator that builds and modifies it, and a Playwright
+    test-automation framework the agents drive.
+  </p>
+  <h2>How the quote is calculated</h2>
+  <ul>
+    <li>Base rate scales with age (starting at $0.50 per $1,000 of coverage).</li>
+    <li>Smokers pay a 1.75&times; multiplier.</li>
+    <li>Health rating adjusts the premium between 0.85&times; (excellent) and 1.75&times; (poor).</li>
+    <li>Longer terms incur a small per-year increment.</li>
+  </ul>
+  <p><em>None of this is actuarially sound &mdash; the numbers are for demonstration only.</em></p>
+</section>
+{% endblock %}

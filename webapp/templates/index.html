@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Get a Life Insurance Quote — SimpleLife{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Get a Life Insurance Quote</h1>
+  <p>Answer a few questions and we'll show you an illustrative premium in seconds.</p>
+</section>
+
+{% if error %}
+<div class="alert" role="alert" data-testid="form-error">{{ error }}</div>
+{% endif %}
+
+<form class="quote-form" method="post" action="/quote" data-testid="quote-form">
+  <div class="field">
+    <label for="full_name">Full name</label>
+    <input id="full_name" name="full_name" type="text" required maxlength="120" data-testid="full_name" />
+  </div>
+
+  <div class="grid-2">
+    <div class="field">
+      <label for="age">Age</label>
+      <input id="age" name="age" type="number" min="18" max="75" required data-testid="age" />
+    </div>
+    <div class="field">
+      <label for="gender">Gender</label>
+      <select id="gender" name="gender" required data-testid="gender">
+        <option value="">Select…</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="field">
+      <label for="smoker">Smoker</label>
+      <select id="smoker" name="smoker" required data-testid="smoker">
+        <option value="">Select…</option>
+        <option value="no">No</option>
+        <option value="yes">Yes</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="health">Health rating</label>
+      <select id="health" name="health" required data-testid="health">
+        <option value="">Select…</option>
+        <option value="excellent">Excellent</option>
+        <option value="good">Good</option>
+        <option value="average">Average</option>
+        <option value="poor">Poor</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="field">
+      <label for="coverage_amount">Coverage amount (USD)</label>
+      <input id="coverage_amount" name="coverage_amount" type="number" min="10000" max="5000000" step="1000" required data-testid="coverage_amount" />
+    </div>
+    <div class="field">
+      <label for="term_years">Term length</label>
+      <select id="term_years" name="term_years" required data-testid="term_years">
+        <option value="">Select…</option>
+        <option value="10">10 years</option>
+        <option value="15">15 years</option>
+        <option value="20">20 years</option>
+        <option value="25">25 years</option>
+        <option value="30">30 years</option>
+      </select>
+    </div>
+  </div>
+
+  <button type="submit" class="btn-primary" data-testid="submit-quote">Calculate Premium</button>
+</form>
+{% endblock %}

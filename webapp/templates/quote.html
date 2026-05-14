@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Your Quote — SimpleLife{% endblock %}
+{% block content %}
+<section class="quote-result" data-testid="quote-result">
+  <h1>Your Illustrative Quote</h1>
+  <p class="lede">Hello <strong data-testid="applicant-name">{{ applicant.full_name }}</strong> — here's your estimate.</p>
+
+  <div class="quote-card">
+    <div class="quote-row">
+      <span class="label">Monthly premium</span>
+      <span class="value" data-testid="monthly-premium">${{ "%.2f"|format(result.monthly_premium) }}</span>
+    </div>
+    <div class="quote-row">
+      <span class="label">Annual premium</span>
+      <span class="value" data-testid="annual-premium">${{ "%.2f"|format(result.annual_premium) }}</span>
+    </div>
+    <div class="quote-row">
+      <span class="label">Coverage</span>
+      <span class="value" data-testid="coverage-display">${{ "{:,.0f}".format(result.coverage_amount) }}</span>
+    </div>
+    <div class="quote-row">
+      <span class="label">Term</span>
+      <span class="value" data-testid="term-display">{{ result.term_years }} years</span>
+    </div>
+    <div class="quote-row">
+      <span class="label">Risk multiplier</span>
+      <span class="value" data-testid="risk-score">{{ result.risk_score }}</span>
+    </div>
+  </div>
+
+  <a href="/" class="btn-secondary" data-testid="new-quote">Get another quote</a>
+</section>
+{% endblock %}

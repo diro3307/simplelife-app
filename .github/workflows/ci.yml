@@ -1,0 +1,46 @@
+name: app-ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  lint-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install ruff httpx
+
+      - name: Lint
+        run: ruff check webapp/ || true   # advisory in Phase 1
+
+      - name: Smoke import + route check
+        run: |
+          python - <<'PY'
+          from fastapi.testclient import TestClient
+          from webapp.main import app
+          c = TestClient(app)
+          assert c.get("/health").status_code == 200
+          assert c.get("/").status_code == 200
+          assert c.get("/about").status_code == 200
+          r = c.get("/api/quote", params=dict(
+              full_name="CI",
+              age=30, gender="male", smoker="no", health="good",
+              coverage_amount=100000, term_years=20,
+          ))
+          assert r.status_code == 200, r.text
+          print("smoke OK", r.json())
+          PY

@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "simplelife-app"
+version = "0.1.0"
+description = "SimpleLife — FastAPI life-insurance quote demo app."
+requires-python = ">=3.10"
+readme = "README.md"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "jinja2>=3.1.4",
+    "python-multipart>=0.0.12",
+    "pydantic>=2.9.0",
+    "python-dotenv>=1.0.1",
+]
+
+[project.scripts]
+simplelife-app = "webapp.main:run"
+
+[tool.setuptools.packages.find]
+include = ["webapp*"]
+
+[tool.setuptools.package-data]
+webapp = ["templates/*.html", "static/*"]
