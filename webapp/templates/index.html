@@ -10,10 +10,49 @@
 <div class="alert" role="alert" data-testid="form-error">{{ error }}</div>
 {% endif %}
 
-<form class="quote-form" method="post" action="/quote" data-testid="quote-form">
-  <div class="field">
-    <label for="full_name">Full name</label>
-    <input id="full_name" name="full_name" type="text" required maxlength="120" data-testid="full_name" />
+{% set field_errors = field_errors or {} %}
+{% set submitted = submitted or {} %}
+
+<form class="quote-form" method="post" action="/quote" novalidate data-testid="quote-form">
+  <div class="grid-2">
+    <div class="field">
+      <label for="first_name">First name</label>
+      <input
+        id="first_name"
+        name="first_name"
+        type="text"
+        required
+        maxlength="50"
+        autocomplete="given-name"
+        spellcheck="false"
+        value="{{ submitted.get('first_name', '') }}"
+        aria-required="true"
+        {% if field_errors.get('first_name') %}aria-invalid="true" aria-describedby="first_name-error"{% endif %}
+        data-testid="first_name"
+      />
+      {% if field_errors.get('first_name') %}
+      <p class="field-error" id="first_name-error" data-testid="first_name-error">{{ field_errors['first_name'] }}</p>
+      {% endif %}
+    </div>
+    <div class="field">
+      <label for="last_name">Last name</label>
+      <input
+        id="last_name"
+        name="last_name"
+        type="text"
+        required
+        maxlength="50"
+        autocomplete="family-name"
+        spellcheck="false"
+        value="{{ submitted.get('last_name', '') }}"
+        aria-required="true"
+        {% if field_errors.get('last_name') %}aria-invalid="true" aria-describedby="last_name-error"{% endif %}
+        data-testid="last_name"
+      />
+      {% if field_errors.get('last_name') %}
+      <p class="field-error" id="last_name-error" data-testid="last_name-error">{{ field_errors['last_name'] }}</p>
+      {% endif %}
+    </div>
   </div>
 
   <div class="grid-2">

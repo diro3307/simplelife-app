@@ -98,6 +98,23 @@ body {
   gap: 16px;
 }
 
+@media (max-width: 560px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field input[aria-invalid="true"] {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+.field-error {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: var(--danger);
+}
+
 .btn-primary,
 .btn-secondary {
   display: inline-block;
