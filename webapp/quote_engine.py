@@ -15,13 +15,19 @@ HealthRating = Literal["excellent", "good", "average", "poor"]
 
 @dataclass(frozen=True)
 class QuoteInput:
-    full_name: str
+    first_name: str
+    last_name: str
     age: int
     gender: Literal["male", "female", "other"]
     smoker: Smoker
     health: HealthRating
     coverage_amount: float
     term_years: int
+
+    @property
+    def full_name(self) -> str:
+        """Convenience: combined display name (kept for templates / logs)."""
+        return f"{self.first_name} {self.last_name}".strip()
 
 
 @dataclass(frozen=True)
@@ -42,8 +48,10 @@ HEALTH_MULTIPLIER: dict[HealthRating, float] = {
 
 
 def _validate(q: QuoteInput) -> None:
-    if not q.full_name or not q.full_name.strip():
-        raise ValueError("full_name is required")
+    if not q.first_name or not q.first_name.strip():
+        raise ValueError("first_name is required")
+    if not q.last_name or not q.last_name.strip():
+        raise ValueError("last_name is required")
     if not 18 <= q.age <= 75:
         raise ValueError("age must be between 18 and 75")
     if q.coverage_amount < 10_000 or q.coverage_amount > 5_000_000:
