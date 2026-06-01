@@ -79,18 +79,51 @@
 
   <div class="grid-2">
     <div class="field">
-      <label for="age">Age</label>
-      <input id="age" name="age" type="number" min="18" max="75" required data-testid="age" />
+      <label for="dob">Date of Birth</label>
+      <input
+        id="dob"
+        name="dob"
+        type="date"
+        required
+        autocomplete="bday"
+        value="{{ submitted.get('dob', '') }}"
+        aria-required="true"
+        aria-describedby="dob-error dob-warning"
+        {% if field_errors.get('dob') %}aria-invalid="true"{% endif %}
+        data-testid="dob"
+      />
+      <p
+        class="field-error"
+        id="dob-error"
+        data-testid="dob-error"
+        {% if not field_errors.get('dob') %}hidden{% endif %}
+      >{{ field_errors.get('dob', '') }}</p>
+      <p class="field-warning" id="dob-warning" data-testid="dob-warning" hidden></p>
     </div>
     <div class="field">
-      <label for="gender">Gender</label>
-      <select id="gender" name="gender" required data-testid="gender">
-        <option value="">Select…</option>
-        <option value="male">Male</option>
-        <option value="female">Female</option>
-        <option value="other">Other</option>
-      </select>
+      <label for="age">Age</label>
+      <input
+        id="age"
+        name="age"
+        type="number"
+        min="0"
+        max="200"
+        readonly
+        aria-readonly="true"
+        placeholder=""
+        data-testid="age"
+      />
     </div>
+  </div>
+
+  <div class="field">
+    <label for="gender">Gender</label>
+    <select id="gender" name="gender" required data-testid="gender">
+      <option value="">Select…</option>
+      <option value="male">Male</option>
+      <option value="female">Female</option>
+      <option value="other">Other</option>
+    </select>
   </div>
 
   <div class="grid-2">
@@ -134,4 +167,88 @@
 
   <button type="submit" class="btn-primary" data-testid="submit-quote">Calculate Premium</button>
 </form>
+
+<script>
+  (function () {
+    var dobEl = document.getElementById('dob');
+    var ageEl = document.getElementById('age');
+    var errEl = document.getElementById('dob-error');
+    var warnEl = document.getElementById('dob-warning');
+    if (!dobEl || !ageEl) return;
+
+    function clearMsg(el) {
+      if (!el) return;
+      el.textContent = '';
+      el.hidden = true;
+    }
+    function setMsg(el, text) {
+      if (!el) return;
+      el.textContent = text;
+      el.hidden = false;
+    }
+
+    function computeAge(dobStr) {
+      // Expect ISO yyyy-mm-dd. Anything else → invalid.
+      if (!dobStr || typeof dobStr !== 'string') return { status: 'empty' };
+      var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dobStr);
+      if (!m) return { status: 'invalid' };
+      var y = parseInt(m[1], 10), mo = parseInt(m[2], 10), d = parseInt(m[3], 10);
+      var dob = new Date(y, mo - 1, d);
+      if (
+        isNaN(dob.getTime()) ||
+        dob.getFullYear() !== y ||
+        dob.getMonth() !== mo - 1 ||
+        dob.getDate() !== d
+      ) {
+        return { status: 'invalid' };
+      }
+      var today = new Date();
+      var todayYmd = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      if (dob.getTime() > todayYmd.getTime()) return { status: 'future' };
+      var age = todayYmd.getFullYear() - dob.getFullYear();
+      var beforeBirthday =
+        todayYmd.getMonth() < dob.getMonth() ||
+        (todayYmd.getMonth() === dob.getMonth() && todayYmd.getDate() < dob.getDate());
+      if (beforeBirthday) age -= 1;
+      return { status: 'ok', age: age };
+    }
+
+    function update() {
+      var raw = (dobEl.value || '').trim();
+      clearMsg(errEl);
+      clearMsg(warnEl);
+      dobEl.removeAttribute('aria-invalid');
+
+      if (raw === '') {
+        ageEl.value = '';
+        return;
+      }
+      var res = computeAge(raw);
+      if (res.status === 'empty' || res.status === 'invalid') {
+        // AC-5: blank Age on empty/invalid; no error spam on empty
+        ageEl.value = '';
+        return;
+      }
+      if (res.status === 'future') {
+        // AC-4
+        ageEl.value = '';
+        dobEl.setAttribute('aria-invalid', 'true');
+        setMsg(errEl, 'Date of Birth cannot be in the future');
+        return;
+      }
+      // status === 'ok'
+      ageEl.value = String(res.age);
+      if (res.age > 120) {
+        // AC-6: still show age, but warn
+        setMsg(warnEl, 'Please verify Date of Birth');
+      }
+    }
+
+    dobEl.addEventListener('input', update);
+    dobEl.addEventListener('change', update);
+    dobEl.addEventListener('blur', update);
+    // Initial paint in case the field is pre-populated.
+    update();
+  })();
+</script>
 {% endblock %}

@@ -115,6 +115,18 @@ body {
   color: var(--danger);
 }
 
+.field-warning {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: #b45309; /* amber-700 */
+}
+
+.field input[readonly] {
+  background: #f3f4f6;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
 .btn-primary,
 .btn-secondary {
   display: inline-block;
