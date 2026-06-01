@@ -9,6 +9,7 @@ Pages:
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -19,6 +20,9 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from .quote_engine import QuoteInput, calculate_quote
+
+# US ZIP code: 5 digits, optionally followed by "-" and 4 digits (ZIP+4).
+_ZIP_RE = re.compile(r"^\d{5}(-\d{4})?$")
 
 load_dotenv()
 
@@ -38,6 +42,7 @@ class QuoteRequest(BaseModel):
     health: str = Field(pattern="^(excellent|good|average|poor)$")
     coverage_amount: float = Field(ge=10_000, le=5_000_000)
     term_years: int = Field()
+    zip_code: str = Field()
 
     @field_validator("first_name", "last_name")
     @classmethod
@@ -49,6 +54,20 @@ class QuoteRequest(BaseModel):
             raise ValueError("must not be empty or whitespace-only")
         if len(trimmed) > 50:
             raise ValueError("must be 50 characters or fewer")
+        return trimmed
+
+    @field_validator("zip_code")
+    @classmethod
+    def _validate_zip_code(cls, value: str) -> str:
+        if value is None:
+            raise ValueError("Zip Code is required")
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("Zip Code is required")
+        if not _ZIP_RE.match(trimmed):
+            raise ValueError(
+                "Zip Code must be a 5-digit US ZIP or ZIP+4 (e.g., 94110 or 94110-1234)"
+            )
         return trimmed
 
     def to_engine_input(self) -> QuoteInput:
@@ -98,10 +117,12 @@ async def quote_form(
     health: str = Form(...),
     coverage_amount: float = Form(...),
     term_years: int = Form(...),
+    zip_code: str = Form(""),
 ) -> HTMLResponse:
     submitted = {
         "first_name": first_name,
         "last_name": last_name,
+        "zip_code": zip_code,
     }
     try:
         req = QuoteRequest(
@@ -113,6 +134,7 @@ async def quote_form(
             health=health,
             coverage_amount=coverage_amount,
             term_years=term_years,
+            zip_code=zip_code,
         )
         result = calculate_quote(req.to_engine_input())
     except ValidationError as exc:
@@ -151,6 +173,7 @@ async def api_quote(
     health: str,
     coverage_amount: float,
     term_years: int,
+    zip_code: str = "",
 ) -> JSONResponse:
     try:
         req = QuoteRequest(
@@ -162,6 +185,7 @@ async def api_quote(
             health=health,
             coverage_amount=coverage_amount,
             term_years=term_years,
+            zip_code=zip_code,
         )
         result = calculate_quote(req.to_engine_input())
     except (ValidationError, ValueError) as exc:
