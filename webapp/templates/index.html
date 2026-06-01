@@ -55,6 +55,28 @@
     </div>
   </div>
 
+  <div class="field">
+    <label for="zip_code">Zip Code</label>
+    <input
+      id="zip_code"
+      name="zip_code"
+      type="text"
+      required
+      inputmode="numeric"
+      autocomplete="postal-code"
+      maxlength="10"
+      pattern="^\d{5}(-\d{4})?$"
+      placeholder="94110 or 94110-1234"
+      value="{{ submitted.get('zip_code', '') }}"
+      aria-required="true"
+      {% if field_errors.get('zip_code') %}aria-invalid="true" aria-describedby="zip_code-error"{% endif %}
+      data-testid="zip_code"
+    />
+    {% if field_errors.get('zip_code') %}
+    <p class="field-error" id="zip_code-error" data-testid="zip_code-error">{{ field_errors['zip_code'] }}</p>
+    {% endif %}
+  </div>
+
   <div class="grid-2">
     <div class="field">
       <label for="age">Age</label>
