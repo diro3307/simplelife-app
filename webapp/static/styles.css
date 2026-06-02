@@ -158,6 +158,23 @@ body {
   border-radius: 6px;
   margin-bottom: 16px;
 }
+.alert .alert-summary {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+.alert .alert-list {
+  margin: 0;
+  padding-left: 20px;
+}
+.alert .alert-list a {
+  color: var(--danger);
+  text-decoration: underline;
+}
+
+.field select[aria-invalid="true"] {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
 
 .quote-result h1 { margin-bottom: 4px; }
 .lede { color: var(--muted); margin-top: 0; }

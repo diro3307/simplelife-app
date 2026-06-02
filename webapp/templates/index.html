@@ -6,12 +6,22 @@
   <p>Answer a few questions and we'll show you an illustrative premium in seconds.</p>
 </section>
 
-{% if error %}
-<div class="alert" role="alert" data-testid="form-error">{{ error }}</div>
-{% endif %}
-
 {% set field_errors = field_errors or {} %}
 {% set submitted = submitted or {} %}
+{% set error_list = error_list or [] %}
+
+{% if error %}
+<div class="alert" role="alert" data-testid="form-error">
+  <p class="alert-summary">{{ error }}</p>
+  {% if error_list %}
+  <ul class="alert-list" data-testid="form-error-list">
+    {% for item in error_list %}
+    <li><a href="#{{ item.field }}" data-testid="form-error-item-{{ item.field }}">{{ item.message }}</a></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endif %}
 
 <form class="quote-form" method="post" action="/quote" novalidate data-testid="quote-form">
   <div class="grid-2">
@@ -118,50 +128,105 @@
 
   <div class="field">
     <label for="gender">Gender</label>
-    <select id="gender" name="gender" required data-testid="gender">
-      <option value="">Select…</option>
-      <option value="male">Male</option>
-      <option value="female">Female</option>
-      <option value="other">Other</option>
+    <select
+      id="gender"
+      name="gender"
+      required
+      aria-required="true"
+      {% if field_errors.get('gender') %}aria-invalid="true" aria-describedby="gender-error"{% endif %}
+      data-testid="gender"
+    >
+      <option value="" {% if not submitted.get('gender') %}selected{% endif %}>Select…</option>
+      <option value="male" {% if submitted.get('gender') == 'male' %}selected{% endif %}>Male</option>
+      <option value="female" {% if submitted.get('gender') == 'female' %}selected{% endif %}>Female</option>
+      <option value="other" {% if submitted.get('gender') == 'other' %}selected{% endif %}>Other</option>
     </select>
+    {% if field_errors.get('gender') %}
+    <p class="field-error" id="gender-error" data-testid="gender-error">{{ field_errors['gender'] }}</p>
+    {% endif %}
   </div>
 
   <div class="grid-2">
     <div class="field">
       <label for="smoker">Smoker</label>
-      <select id="smoker" name="smoker" required data-testid="smoker">
-        <option value="">Select…</option>
-        <option value="no">No</option>
-        <option value="yes">Yes</option>
+      <select
+        id="smoker"
+        name="smoker"
+        required
+        aria-required="true"
+        {% if field_errors.get('smoker') %}aria-invalid="true" aria-describedby="smoker-error"{% endif %}
+        data-testid="smoker"
+      >
+        <option value="" {% if not submitted.get('smoker') %}selected{% endif %}>Select…</option>
+        <option value="no" {% if submitted.get('smoker') == 'no' %}selected{% endif %}>No</option>
+        <option value="yes" {% if submitted.get('smoker') == 'yes' %}selected{% endif %}>Yes</option>
       </select>
+      {% if field_errors.get('smoker') %}
+      <p class="field-error" id="smoker-error" data-testid="smoker-error">{{ field_errors['smoker'] }}</p>
+      {% endif %}
     </div>
     <div class="field">
       <label for="health">Health rating</label>
-      <select id="health" name="health" required data-testid="health">
-        <option value="">Select…</option>
-        <option value="excellent">Excellent</option>
-        <option value="good">Good</option>
-        <option value="average">Average</option>
-        <option value="poor">Poor</option>
+      <select
+        id="health"
+        name="health"
+        required
+        aria-required="true"
+        {% if field_errors.get('health') %}aria-invalid="true" aria-describedby="health-error"{% endif %}
+        data-testid="health"
+      >
+        <option value="" {% if not submitted.get('health') %}selected{% endif %}>Select…</option>
+        <option value="excellent" {% if submitted.get('health') == 'excellent' %}selected{% endif %}>Excellent</option>
+        <option value="good" {% if submitted.get('health') == 'good' %}selected{% endif %}>Good</option>
+        <option value="average" {% if submitted.get('health') == 'average' %}selected{% endif %}>Average</option>
+        <option value="poor" {% if submitted.get('health') == 'poor' %}selected{% endif %}>Poor</option>
       </select>
+      {% if field_errors.get('health') %}
+      <p class="field-error" id="health-error" data-testid="health-error">{{ field_errors['health'] }}</p>
+      {% endif %}
     </div>
   </div>
 
   <div class="grid-2">
     <div class="field">
       <label for="coverage_amount">Coverage amount (USD)</label>
-      <input id="coverage_amount" name="coverage_amount" type="number" min="10000" max="5000000" step="1000" required data-testid="coverage_amount" />
+      <input
+        id="coverage_amount"
+        name="coverage_amount"
+        type="number"
+        min="10000"
+        max="5000000"
+        step="1000"
+        required
+        value="{{ submitted.get('coverage_amount', '') }}"
+        aria-required="true"
+        {% if field_errors.get('coverage_amount') %}aria-invalid="true" aria-describedby="coverage_amount-error"{% endif %}
+        data-testid="coverage_amount"
+      />
+      {% if field_errors.get('coverage_amount') %}
+      <p class="field-error" id="coverage_amount-error" data-testid="coverage_amount-error">{{ field_errors['coverage_amount'] }}</p>
+      {% endif %}
     </div>
     <div class="field">
       <label for="term_years">Term length</label>
-      <select id="term_years" name="term_years" required data-testid="term_years">
-        <option value="">Select…</option>
-        <option value="10">10 years</option>
-        <option value="15">15 years</option>
-        <option value="20">20 years</option>
-        <option value="25">25 years</option>
-        <option value="30">30 years</option>
+      <select
+        id="term_years"
+        name="term_years"
+        required
+        aria-required="true"
+        {% if field_errors.get('term_years') %}aria-invalid="true" aria-describedby="term_years-error"{% endif %}
+        data-testid="term_years"
+      >
+        <option value="" {% if not submitted.get('term_years') %}selected{% endif %}>Select…</option>
+        <option value="10" {% if submitted.get('term_years')|string == '10' %}selected{% endif %}>10 years</option>
+        <option value="15" {% if submitted.get('term_years')|string == '15' %}selected{% endif %}>15 years</option>
+        <option value="20" {% if submitted.get('term_years')|string == '20' %}selected{% endif %}>20 years</option>
+        <option value="25" {% if submitted.get('term_years')|string == '25' %}selected{% endif %}>25 years</option>
+        <option value="30" {% if submitted.get('term_years')|string == '30' %}selected{% endif %}>30 years</option>
       </select>
+      {% if field_errors.get('term_years') %}
+      <p class="field-error" id="term_years-error" data-testid="term_years-error">{{ field_errors['term_years'] }}</p>
+      {% endif %}
     </div>
   </div>
 
@@ -249,6 +314,70 @@
     dobEl.addEventListener('blur', update);
     // Initial paint in case the field is pre-populated.
     update();
+  })();
+
+  // AC-6 / AC-7: focus the first invalid field on render, and clear each
+  // field's inline error as soon as the user enters/selects a valid value.
+  (function () {
+    var form = document.querySelector('[data-testid="quote-form"]');
+    if (!form) return;
+
+    var FIELD_IDS = [
+      'first_name', 'last_name', 'zip_code', 'dob',
+      'gender', 'smoker', 'health',
+      'coverage_amount', 'term_years',
+    ];
+
+    function isEmpty(el) {
+      if (!el) return true;
+      var v = (el.value == null ? '' : String(el.value));
+      return v.trim() === '';
+    }
+
+    function clearFieldError(fieldId) {
+      var input = document.getElementById(fieldId);
+      var err = document.getElementById(fieldId + '-error');
+      if (input) {
+        input.removeAttribute('aria-invalid');
+        // describedby may still mention the error id; harmless if hidden.
+      }
+      if (err && fieldId !== 'dob') {
+        // The DOB error element is reused for client-side parse/future
+        // checks (managed by the DOB script above); leave it alone here.
+        err.textContent = '';
+        err.hidden = true;
+      }
+    }
+
+    function tryClearOnCorrection(fieldId) {
+      var input = document.getElementById(fieldId);
+      if (!input) return;
+      if (!input.hasAttribute('aria-invalid')) return;
+      if (!isEmpty(input)) {
+        clearFieldError(fieldId);
+      }
+    }
+
+    FIELD_IDS.forEach(function (fid) {
+      var el = document.getElementById(fid);
+      if (!el) return;
+      el.addEventListener('input', function () { tryClearOnCorrection(fid); });
+      el.addEventListener('change', function () { tryClearOnCorrection(fid); });
+      el.addEventListener('blur', function () { tryClearOnCorrection(fid); });
+    });
+
+    // AC-6: move focus to the first invalid field on submit-failed render.
+    var firstInvalid = null;
+    for (var i = 0; i < FIELD_IDS.length; i++) {
+      var candidate = document.getElementById(FIELD_IDS[i]);
+      if (candidate && candidate.getAttribute('aria-invalid') === 'true') {
+        firstInvalid = candidate;
+        break;
+      }
+    }
+    if (firstInvalid && typeof firstInvalid.focus === 'function') {
+      try { firstInvalid.focus({ preventScroll: false }); } catch (_) { firstInvalid.focus(); }
+    }
   })();
 </script>
 {% endblock %}
