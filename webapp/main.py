@@ -33,6 +33,10 @@ FIELD_LABELS: dict[str, str] = {
     "first_name": "First name",
     "last_name": "Last name",
     "zip_code": "Zip Code",
+    "address_line1": "Address line 1",
+    "address_line2": "Address line 2",
+    "city": "City",
+    "state": "State",
     "dob": "Date of Birth",
     "gender": "Gender",
     "smoker": "Smoker",
@@ -52,7 +56,14 @@ TEXT_MAX_LENGTHS: dict[str, int] = {
     "first_name": 50,
     "last_name": 50,
     "zip_code": 10,
+    "address_line1": 100,
+    "address_line2": 100,
+    "city": 100,
+    "state": 100,
 }
+
+# Address fields required on write (Issue #30). `address_line2` is optional.
+REQUIRED_ADDRESS_FIELDS: tuple[str, ...] = ("address_line1", "city", "state")
 
 
 def _required_message(field: str) -> str:
@@ -103,6 +114,14 @@ class QuoteRequest(BaseModel):
     coverage_amount: float = Field(ge=10_000, le=5_000_000)
     term_years: int = Field()
     zip_code: str = Field()
+    # Issue #30 — address fields. `address_line1`, `city`, `state` are required
+    # on write; `address_line2` is optional. All four are capped at 100 chars.
+    # Defaults are "" to keep legacy reads (records that pre-date this change)
+    # backward-compatible — the API can echo them as empty without erroring.
+    address_line1: str = Field(default="", max_length=100)
+    address_line2: str = Field(default="", max_length=100)
+    city: str = Field(default="", max_length=100)
+    state: str = Field(default="", max_length=100)
 
     @field_validator("first_name", "last_name")
     @classmethod
@@ -128,6 +147,17 @@ class QuoteRequest(BaseModel):
             raise ValueError(
                 "Zip Code must be a 5-digit US ZIP or ZIP+4 (e.g., 94110 or 94110-1234)"
             )
+        return trimmed
+
+    @field_validator("address_line1", "address_line2", "city", "state")
+    @classmethod
+    def _strip_address_field(cls, value: str) -> str:
+        # Normalize: trim whitespace; cap-length already enforced by Field.
+        if value is None:
+            return ""
+        trimmed = value.strip()
+        if len(trimmed) > 100:
+            raise ValueError("must be 100 characters or fewer")
         return trimmed
 
     def to_engine_input(self) -> QuoteInput:
@@ -156,11 +186,56 @@ def _per_field_errors(exc: ValidationError) -> dict[str, str]:
     return errors
 
 
+def _validate_address_fields(
+    *,
+    address_line1: str,
+    address_line2: str,
+    city: str,
+    state: str,
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Validate Issue #30 address fields. Returns (errors, parsed).
+
+    `address_line1`, `city`, `state` are required; `address_line2` is optional
+    and persists as empty string when omitted. Each field is capped at 100
+    chars.
+    """
+    errors: dict[str, str] = {}
+    parsed: dict[str, str] = {}
+
+    inputs = {
+        "address_line1": address_line1,
+        "address_line2": address_line2,
+        "city": city,
+        "state": state,
+    }
+    for fname, raw in inputs.items():
+        trimmed = (raw or "").strip()
+        if not trimmed:
+            if fname in REQUIRED_ADDRESS_FIELDS:
+                errors[fname] = _required_message(fname)
+            else:
+                # address_line2 optional — persists as empty.
+                parsed[fname] = ""
+            continue
+        if len(trimmed) > TEXT_MAX_LENGTHS[fname]:
+            errors[fname] = (
+                f"{FIELD_LABELS[fname]} must be 100 characters or fewer"
+            )
+            continue
+        parsed[fname] = trimmed
+
+    return errors, parsed
+
+
 def _validate_form_fields(
     *,
     first_name: str,
     last_name: str,
     zip_code: str,
+    address_line1: str,
+    address_line2: str,
+    city: str,
+    state: str,
     dob: str,
     gender: str,
     smoker: str,
@@ -207,6 +282,16 @@ def _validate_form_fields(
         )
     else:
         parsed["zip_code"] = zip_trimmed
+
+    # --- Address fields (Issue #30) --------------------------------------
+    addr_errors, addr_parsed = _validate_address_fields(
+        address_line1=address_line1,
+        address_line2=address_line2,
+        city=city,
+        state=state,
+    )
+    field_errors.update(addr_errors)
+    parsed.update(addr_parsed)
 
     # --- Date of Birth (AC-1) --------------------------------------------
     dob_trimmed = (dob or "").strip()
@@ -301,6 +386,10 @@ async def quote_form(
     coverage_amount: str = Form(""),
     term_years: str = Form(""),
     zip_code: str = Form(""),
+    address_line1: str = Form(""),
+    address_line2: str = Form(""),
+    city: str = Form(""),
+    state: str = Form(""),
     dob: str = Form(""),
     age: str = Form(""),
 ) -> HTMLResponse:
@@ -308,6 +397,10 @@ async def quote_form(
         "first_name": first_name,
         "last_name": last_name,
         "zip_code": zip_code,
+        "address_line1": address_line1,
+        "address_line2": address_line2,
+        "city": city,
+        "state": state,
         "dob": dob,
         "gender": gender,
         "smoker": smoker,
@@ -321,6 +414,10 @@ async def quote_form(
         first_name=first_name,
         last_name=last_name,
         zip_code=zip_code,
+        address_line1=address_line1,
+        address_line2=address_line2,
+        city=city,
+        state=state,
         dob=dob,
         gender=gender,
         smoker=smoker,
@@ -361,6 +458,10 @@ async def quote_form(
             coverage_amount=parsed["coverage_amount"],  # type: ignore[arg-type]
             term_years=parsed["term_years"],  # type: ignore[arg-type]
             zip_code=parsed["zip_code"],  # type: ignore[arg-type]
+            address_line1=parsed.get("address_line1", ""),  # type: ignore[arg-type]
+            address_line2=parsed.get("address_line2", ""),  # type: ignore[arg-type]
+            city=parsed.get("city", ""),  # type: ignore[arg-type]
+            state=parsed.get("state", ""),  # type: ignore[arg-type]
         )
         result = calculate_quote(req.to_engine_input())
     except ValidationError as exc:
@@ -406,7 +507,28 @@ async def api_quote(
     coverage_amount: float,
     term_years: int,
     zip_code: str = "",
+    address_line1: str = "",
+    address_line2: str = "",
+    city: str = "",
+    state: str = "",
 ) -> JSONResponse:
+    # Issue #30: any address field present on the request triggers full address
+    # validation (required address_line1/city/state, 100-char caps). When all
+    # four are absent we treat this as a legacy/back-compat read and skip the
+    # required-field check so existing callers keep working.
+    any_address_supplied = any(
+        (address_line1, address_line2, city, state)
+    )
+    if any_address_supplied:
+        addr_errors, _ = _validate_address_fields(
+            address_line1=address_line1,
+            address_line2=address_line2,
+            city=city,
+            state=state,
+        )
+        if addr_errors:
+            raise HTTPException(status_code=400, detail=addr_errors)
+
     try:
         req = QuoteRequest(
             first_name=first_name,
@@ -418,6 +540,10 @@ async def api_quote(
             coverage_amount=coverage_amount,
             term_years=term_years,
             zip_code=zip_code,
+            address_line1=address_line1,
+            address_line2=address_line2,
+            city=city,
+            state=state,
         )
         result = calculate_quote(req.to_engine_input())
     except (ValidationError, ValueError) as exc:
