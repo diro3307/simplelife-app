@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import re
+from datetime import date
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -23,6 +24,31 @@ from .quote_engine import QuoteInput, calculate_quote
 
 # US ZIP code: 5 digits, optionally followed by "-" and 4 digits (ZIP+4).
 _ZIP_RE = re.compile(r"^\d{5}(-\d{4})?$")
+
+# ISO Date of Birth: YYYY-MM-DD.
+_DOB_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
+
+
+def _parse_dob(value: str) -> date | None:
+    """Parse a YYYY-MM-DD string into a date. Return None if unparseable."""
+    if not value:
+        return None
+    m = _DOB_RE.match(value.strip())
+    if not m:
+        return None
+    y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    try:
+        return date(y, mo, d)
+    except ValueError:
+        return None
+
+
+def _age_from_dob(dob: date, today: date) -> int:
+    """Full years between dob and today, birthday-aware."""
+    years = today.year - dob.year
+    if (today.month, today.day) < (dob.month, dob.day):
+        years -= 1
+    return years
 
 load_dotenv()
 
@@ -111,24 +137,54 @@ async def quote_form(
     request: Request,
     first_name: str = Form(...),
     last_name: str = Form(...),
-    age: int = Form(...),
     gender: str = Form(...),
     smoker: str = Form(...),
     health: str = Form(...),
     coverage_amount: float = Form(...),
     term_years: int = Form(...),
     zip_code: str = Form(""),
+    dob: str = Form(""),
+    age: int | None = Form(None),
 ) -> HTMLResponse:
     submitted = {
         "first_name": first_name,
         "last_name": last_name,
         "zip_code": zip_code,
+        "dob": dob,
     }
+
+    # AC-4/AC-5: validate DOB before falling through to business validation.
+    # DOB is the source of truth on the UI form; derive age from it.
+    field_errors: dict[str, str] = {}
+    parsed_dob = _parse_dob(dob)
+    if dob == "" and age is None:
+        field_errors["dob"] = "Please enter a valid date"
+    elif dob != "" and parsed_dob is None:
+        field_errors["dob"] = "Please enter a valid date"
+    elif parsed_dob is not None and parsed_dob > date.today():
+        field_errors["dob"] = "Date of Birth cannot be in the future"
+
+    if field_errors:
+        return templates.TemplateResponse(
+            request,
+            "index.html",
+            {
+                "error": next(iter(field_errors.values())),
+                "field_errors": field_errors,
+                "submitted": submitted,
+            },
+            status_code=400,
+        )
+
+    derived_age = (
+        _age_from_dob(parsed_dob, date.today()) if parsed_dob is not None else age
+    )
+
     try:
         req = QuoteRequest(
             first_name=first_name,
             last_name=last_name,
-            age=age,
+            age=derived_age,
             gender=gender,
             smoker=smoker,
             health=health,
