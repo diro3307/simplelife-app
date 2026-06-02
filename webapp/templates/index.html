@@ -66,6 +66,93 @@
   </div>
 
   <div class="field">
+    <label for="address_line1">Address line 1</label>
+    <input
+      id="address_line1"
+      name="address_line1"
+      type="text"
+      required
+      maxlength="100"
+      autocomplete="address-line1"
+      value="{{ submitted.get('address_line1', '') }}"
+      aria-required="true"
+      {% if field_errors.get('address_line1') %}aria-invalid="true" aria-describedby="address_line1-error"{% endif %}
+      data-testid="address_line1"
+    />
+    <p
+      class="field-error"
+      id="address_line1-error"
+      data-testid="address_line1-error"
+      {% if not field_errors.get('address_line1') %}hidden{% endif %}
+    >{{ field_errors.get('address_line1', '') }}</p>
+  </div>
+
+  <div class="field">
+    <label for="address_line2">Address line 2 <span class="field-optional">(optional)</span></label>
+    <input
+      id="address_line2"
+      name="address_line2"
+      type="text"
+      maxlength="100"
+      autocomplete="address-line2"
+      value="{{ submitted.get('address_line2', '') }}"
+      {% if field_errors.get('address_line2') %}aria-invalid="true" aria-describedby="address_line2-error"{% endif %}
+      data-testid="address_line2"
+    />
+    <p
+      class="field-error"
+      id="address_line2-error"
+      data-testid="address_line2-error"
+      {% if not field_errors.get('address_line2') %}hidden{% endif %}
+    >{{ field_errors.get('address_line2', '') }}</p>
+  </div>
+
+  <div class="grid-2">
+    <div class="field">
+      <label for="city">City</label>
+      <input
+        id="city"
+        name="city"
+        type="text"
+        required
+        maxlength="100"
+        autocomplete="address-level2"
+        value="{{ submitted.get('city', '') }}"
+        aria-required="true"
+        {% if field_errors.get('city') %}aria-invalid="true" aria-describedby="city-error"{% endif %}
+        data-testid="city"
+      />
+      <p
+        class="field-error"
+        id="city-error"
+        data-testid="city-error"
+        {% if not field_errors.get('city') %}hidden{% endif %}
+      >{{ field_errors.get('city', '') }}</p>
+    </div>
+    <div class="field">
+      <label for="state">State</label>
+      <input
+        id="state"
+        name="state"
+        type="text"
+        required
+        maxlength="100"
+        autocomplete="address-level1"
+        value="{{ submitted.get('state', '') }}"
+        aria-required="true"
+        {% if field_errors.get('state') %}aria-invalid="true" aria-describedby="state-error"{% endif %}
+        data-testid="state"
+      />
+      <p
+        class="field-error"
+        id="state-error"
+        data-testid="state-error"
+        {% if not field_errors.get('state') %}hidden{% endif %}
+      >{{ field_errors.get('state', '') }}</p>
+    </div>
+  </div>
+
+  <div class="field">
     <label for="zip_code">Zip Code</label>
     <input
       id="zip_code"
@@ -323,7 +410,9 @@
     if (!form) return;
 
     var FIELD_IDS = [
-      'first_name', 'last_name', 'zip_code', 'dob',
+      'first_name', 'last_name',
+      'address_line1', 'address_line2', 'city', 'state',
+      'zip_code', 'dob',
       'gender', 'smoker', 'health',
       'coverage_amount', 'term_years',
     ];
@@ -378,6 +467,82 @@
     if (firstInvalid && typeof firstInvalid.focus === 'function') {
       try { firstInvalid.focus({ preventScroll: false }); } catch (_) { firstInvalid.focus(); }
     }
+  })();
+
+  // Issue #31: client-side validation for the new address fields.
+  // - addressLine1, city, state are required
+  // - addressLine2 is optional
+  // - all four are capped at 100 characters
+  (function () {
+    var form = document.querySelector('[data-testid="quote-form"]');
+    if (!form) return;
+
+    var ADDRESS_FIELDS = [
+      { id: 'address_line1', label: 'Address line 1', required: true },
+      { id: 'address_line2', label: 'Address line 2', required: false },
+      { id: 'city', label: 'City', required: true },
+      { id: 'state', label: 'State', required: true },
+    ];
+    var MAX_LEN = 100;
+
+    function setErr(input, errEl, msg) {
+      if (input) input.setAttribute('aria-invalid', 'true');
+      if (errEl) {
+        errEl.textContent = msg;
+        errEl.hidden = false;
+      }
+    }
+    function clearErr(input, errEl) {
+      if (input) input.removeAttribute('aria-invalid');
+      if (errEl) {
+        errEl.textContent = '';
+        errEl.hidden = true;
+      }
+    }
+
+    function validateField(field) {
+      var input = document.getElementById(field.id);
+      var errEl = document.getElementById(field.id + '-error');
+      if (!input) return true;
+      var value = (input.value || '').trim();
+      if (field.required && value === '') {
+        setErr(input, errEl, field.label + ' is required');
+        return false;
+      }
+      if ((input.value || '').length > MAX_LEN) {
+        setErr(input, errEl, field.label + ' must be 100 characters or fewer');
+        return false;
+      }
+      clearErr(input, errEl);
+      return true;
+    }
+
+    ADDRESS_FIELDS.forEach(function (field) {
+      var input = document.getElementById(field.id);
+      if (!input) return;
+      function reval() {
+        if (input.hasAttribute('aria-invalid')) {
+          validateField(field);
+        }
+      }
+      input.addEventListener('input', reval);
+      input.addEventListener('change', reval);
+      input.addEventListener('blur', function () { validateField(field); });
+    });
+
+    form.addEventListener('submit', function (ev) {
+      var firstInvalid = null;
+      ADDRESS_FIELDS.forEach(function (field) {
+        var ok = validateField(field);
+        if (!ok && !firstInvalid) {
+          firstInvalid = document.getElementById(field.id);
+        }
+      });
+      if (firstInvalid) {
+        ev.preventDefault();
+        try { firstInvalid.focus({ preventScroll: false }); } catch (_) { firstInvalid.focus(); }
+      }
+    });
   })();
 </script>
 {% endblock %}

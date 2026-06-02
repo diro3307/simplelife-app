@@ -303,10 +303,18 @@ async def quote_form(
     zip_code: str = Form(""),
     dob: str = Form(""),
     age: str = Form(""),
+    address_line1: str = Form(""),
+    address_line2: str = Form(""),
+    city: str = Form(""),
+    state: str = Form(""),
 ) -> HTMLResponse:
     submitted = {
         "first_name": first_name,
         "last_name": last_name,
+        "address_line1": address_line1,
+        "address_line2": address_line2,
+        "city": city,
+        "state": state,
         "zip_code": zip_code,
         "dob": dob,
         "gender": gender,
