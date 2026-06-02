@@ -28,6 +28,40 @@ _ZIP_RE = re.compile(r"^\d{5}(-\d{4})?$")
 # ISO Date of Birth: YYYY-MM-DD.
 _DOB_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
 
+# Human-readable labels used in field-level validation messages.
+FIELD_LABELS: dict[str, str] = {
+    "first_name": "First name",
+    "last_name": "Last name",
+    "zip_code": "Zip Code",
+    "dob": "Date of Birth",
+    "gender": "Gender",
+    "smoker": "Smoker",
+    "health": "Health rating",
+    "coverage_amount": "Coverage amount",
+    "term_years": "Term length",
+}
+
+# Fields rendered as <select>/dropdown that get a "Please select…" message
+# (AC-3) instead of "<Field> is required" (AC-1).
+SELECT_FIELDS: frozenset[str] = frozenset(
+    {"gender", "smoker", "health", "term_years"}
+)
+
+# Allowed maximum lengths for free-text fields (AC-4).
+TEXT_MAX_LENGTHS: dict[str, int] = {
+    "first_name": 50,
+    "last_name": 50,
+    "zip_code": 10,
+}
+
+
+def _required_message(field: str) -> str:
+    """Build the user-facing 'required' message for a given form field."""
+    label = FIELD_LABELS.get(field, field)
+    if field in SELECT_FIELDS:
+        return f"Please select a {label}"
+    return f"{label} is required"
+
 
 def _parse_dob(value: str) -> date | None:
     """Parse a YYYY-MM-DD string into a date. Return None if unparseable."""
@@ -122,6 +156,130 @@ def _per_field_errors(exc: ValidationError) -> dict[str, str]:
     return errors
 
 
+def _validate_form_fields(
+    *,
+    first_name: str,
+    last_name: str,
+    zip_code: str,
+    dob: str,
+    gender: str,
+    smoker: str,
+    health: str,
+    coverage_amount: str,
+    term_years: str,
+) -> tuple[dict[str, str], dict[str, object]]:
+    """Run field-level validation across every required field on the quote form.
+
+    Implements the AC-1..AC-5 server-side checks: empty required fields,
+    whitespace-only inputs, unselected dropdowns, length caps, and basic
+    numeric/date parsing. Returns (field_errors, parsed_values).
+    """
+    field_errors: dict[str, str] = {}
+    parsed: dict[str, object] = {}
+
+    # --- Text inputs: first/last name (AC-1, AC-2, AC-4, AC-5) -----------
+    for fname, raw in (("first_name", first_name), ("last_name", last_name)):
+        trimmed = (raw or "").strip()
+        if not trimmed:
+            # AC-1 / AC-2: missing or whitespace-only.
+            field_errors[fname] = _required_message(fname)
+            continue
+        cap = TEXT_MAX_LENGTHS[fname]
+        if len(trimmed) > cap:
+            # AC-4: above declared maxLength.
+            field_errors[fname] = (
+                f"{FIELD_LABELS[fname]} must be {cap} characters or fewer"
+            )
+            continue
+        parsed[fname] = trimmed
+
+    # --- Zip Code (AC-1, AC-2, AC-4) -------------------------------------
+    zip_trimmed = (zip_code or "").strip()
+    if not zip_trimmed:
+        field_errors["zip_code"] = _required_message("zip_code")
+    elif len(zip_trimmed) > TEXT_MAX_LENGTHS["zip_code"]:
+        field_errors["zip_code"] = (
+            "Zip Code must be 10 characters or fewer"
+        )
+    elif not _ZIP_RE.match(zip_trimmed):
+        field_errors["zip_code"] = (
+            "Zip Code must be a 5-digit US ZIP or ZIP+4 (e.g., 94110 or 94110-1234)"
+        )
+    else:
+        parsed["zip_code"] = zip_trimmed
+
+    # --- Date of Birth (AC-1) --------------------------------------------
+    dob_trimmed = (dob or "").strip()
+    if not dob_trimmed:
+        field_errors["dob"] = _required_message("dob")
+    else:
+        parsed_dob = _parse_dob(dob_trimmed)
+        if parsed_dob is None:
+            field_errors["dob"] = "Please enter a valid date"
+        elif parsed_dob > date.today():
+            field_errors["dob"] = "Date of Birth cannot be in the future"
+        else:
+            parsed["dob"] = parsed_dob
+
+    # --- Select fields (AC-3) --------------------------------------------
+    gender_val = (gender or "").strip()
+    if not gender_val:
+        field_errors["gender"] = _required_message("gender")
+    elif gender_val not in {"male", "female", "other"}:
+        field_errors["gender"] = "Please select a valid Gender"
+    else:
+        parsed["gender"] = gender_val
+
+    smoker_val = (smoker or "").strip()
+    if not smoker_val:
+        field_errors["smoker"] = _required_message("smoker")
+    elif smoker_val not in {"yes", "no"}:
+        field_errors["smoker"] = "Please select a valid Smoker option"
+    else:
+        parsed["smoker"] = smoker_val
+
+    health_val = (health or "").strip()
+    if not health_val:
+        field_errors["health"] = _required_message("health")
+    elif health_val not in {"excellent", "good", "average", "poor"}:
+        field_errors["health"] = "Please select a valid Health rating"
+    else:
+        parsed["health"] = health_val
+
+    term_val = (term_years or "").strip()
+    if not term_val:
+        field_errors["term_years"] = _required_message("term_years")
+    else:
+        try:
+            term_int = int(term_val)
+        except ValueError:
+            field_errors["term_years"] = "Please select a valid Term length"
+        else:
+            if term_int not in {10, 15, 20, 25, 30}:
+                field_errors["term_years"] = "Please select a valid Term length"
+            else:
+                parsed["term_years"] = term_int
+
+    # --- Coverage amount (AC-1) ------------------------------------------
+    cov_val = (coverage_amount or "").strip()
+    if not cov_val:
+        field_errors["coverage_amount"] = _required_message("coverage_amount")
+    else:
+        try:
+            cov_float = float(cov_val)
+        except ValueError:
+            field_errors["coverage_amount"] = "Coverage amount must be a number"
+        else:
+            if cov_float < 10_000 or cov_float > 5_000_000:
+                field_errors["coverage_amount"] = (
+                    "Coverage amount must be between $10,000 and $5,000,000"
+                )
+            else:
+                parsed["coverage_amount"] = cov_float
+
+    return field_errors, parsed
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "index.html")
@@ -135,71 +293,89 @@ async def about(request: Request) -> HTMLResponse:
 @app.post("/quote", response_class=HTMLResponse)
 async def quote_form(
     request: Request,
-    first_name: str = Form(...),
-    last_name: str = Form(...),
-    gender: str = Form(...),
-    smoker: str = Form(...),
-    health: str = Form(...),
-    coverage_amount: float = Form(...),
-    term_years: int = Form(...),
+    first_name: str = Form(""),
+    last_name: str = Form(""),
+    gender: str = Form(""),
+    smoker: str = Form(""),
+    health: str = Form(""),
+    coverage_amount: str = Form(""),
+    term_years: str = Form(""),
     zip_code: str = Form(""),
     dob: str = Form(""),
-    age: int | None = Form(None),
+    age: str = Form(""),
 ) -> HTMLResponse:
     submitted = {
         "first_name": first_name,
         "last_name": last_name,
         "zip_code": zip_code,
         "dob": dob,
+        "gender": gender,
+        "smoker": smoker,
+        "health": health,
+        "coverage_amount": coverage_amount,
+        "term_years": term_years,
     }
 
-    # AC-4/AC-5: validate DOB before falling through to business validation.
-    # DOB is the source of truth on the UI form; derive age from it.
-    field_errors: dict[str, str] = {}
-    parsed_dob = _parse_dob(dob)
-    if dob == "" and age is None:
-        field_errors["dob"] = "Please enter a valid date"
-    elif dob != "" and parsed_dob is None:
-        field_errors["dob"] = "Please enter a valid date"
-    elif parsed_dob is not None and parsed_dob > date.today():
-        field_errors["dob"] = "Date of Birth cannot be in the future"
+    # AC-1..AC-5: server-side field-level validation across every required input.
+    field_errors, parsed = _validate_form_fields(
+        first_name=first_name,
+        last_name=last_name,
+        zip_code=zip_code,
+        dob=dob,
+        gender=gender,
+        smoker=smoker,
+        health=health,
+        coverage_amount=coverage_amount,
+        term_years=term_years,
+    )
 
     if field_errors:
+        # AC-6: render every inline error plus an accessible summary.
+        error_list = [
+            {"field": fname, "message": msg}
+            for fname, msg in field_errors.items()
+        ]
         return templates.TemplateResponse(
             request,
             "index.html",
             {
-                "error": next(iter(field_errors.values())),
+                "error": "Please correct the highlighted fields and try again.",
                 "field_errors": field_errors,
+                "error_list": error_list,
                 "submitted": submitted,
             },
             status_code=400,
         )
 
-    derived_age = (
-        _age_from_dob(parsed_dob, date.today()) if parsed_dob is not None else age
-    )
+    parsed_dob: date = parsed["dob"]  # type: ignore[assignment]
+    derived_age = _age_from_dob(parsed_dob, date.today())
 
     try:
         req = QuoteRequest(
-            first_name=first_name,
-            last_name=last_name,
+            first_name=parsed["first_name"],  # type: ignore[arg-type]
+            last_name=parsed["last_name"],  # type: ignore[arg-type]
             age=derived_age,
-            gender=gender,
-            smoker=smoker,
-            health=health,
-            coverage_amount=coverage_amount,
-            term_years=term_years,
-            zip_code=zip_code,
+            gender=parsed["gender"],  # type: ignore[arg-type]
+            smoker=parsed["smoker"],  # type: ignore[arg-type]
+            health=parsed["health"],  # type: ignore[arg-type]
+            coverage_amount=parsed["coverage_amount"],  # type: ignore[arg-type]
+            term_years=parsed["term_years"],  # type: ignore[arg-type]
+            zip_code=parsed["zip_code"],  # type: ignore[arg-type]
         )
         result = calculate_quote(req.to_engine_input())
     except ValidationError as exc:
+        pydantic_errors = _per_field_errors(exc)
+        error_list = [
+            {"field": fname, "message": msg}
+            for fname, msg in pydantic_errors.items()
+        ]
         return templates.TemplateResponse(
             request,
             "index.html",
             {
-                "error": str(exc),
-                "field_errors": _per_field_errors(exc),
+                "error": "Please correct the highlighted fields and try again.",
+                "field_errors": pydantic_errors,
+                "error_list": error_list,
                 "submitted": submitted,
             },
             status_code=400,
