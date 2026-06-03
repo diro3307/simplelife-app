@@ -30,6 +30,7 @@ _DOB_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
 
 # Human-readable labels used in field-level validation messages.
 FIELD_LABELS: dict[str, str] = {
+    "title": "Title",
     "first_name": "First name",
     "last_name": "Last name",
     "zip_code": "Zip Code",
@@ -44,8 +45,11 @@ FIELD_LABELS: dict[str, str] = {
 # Fields rendered as <select>/dropdown that get a "Please select…" message
 # (AC-3) instead of "<Field> is required" (AC-1).
 SELECT_FIELDS: frozenset[str] = frozenset(
-    {"gender", "smoker", "health", "term_years"}
+    {"title", "gender", "smoker", "health", "term_years"}
 )
+
+# Allowed Title (salutation) values. Empty string permitted (AC3 — optional).
+ALLOWED_TITLES: frozenset[str] = frozenset({"Mr", "Mrs", "Miss", "Ms", "Dr"})
 
 # Allowed maximum lengths for free-text fields (AC-4).
 TEXT_MAX_LENGTHS: dict[str, int] = {
@@ -94,6 +98,7 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 
 
 class QuoteRequest(BaseModel):
+    title: str = Field(default="", max_length=10)
     first_name: str = Field(min_length=1, max_length=50)
     last_name: str = Field(min_length=1, max_length=50)
     age: int = Field(ge=18, le=75)
@@ -130,8 +135,23 @@ class QuoteRequest(BaseModel):
             )
         return trimmed
 
+    @field_validator("title")
+    @classmethod
+    def _validate_title(cls, value: str) -> str:
+        if value is None:
+            return ""
+        trimmed = value.strip()
+        if not trimmed:
+            return ""
+        if trimmed not in ALLOWED_TITLES:
+            raise ValueError(
+                "Title must be one of: Mr, Mrs, Miss, Ms, Dr"
+            )
+        return trimmed
+
     def to_engine_input(self) -> QuoteInput:
         return QuoteInput(
+            title=self.title,
             first_name=self.first_name,
             last_name=self.last_name,
             age=self.age,
@@ -158,6 +178,7 @@ def _per_field_errors(exc: ValidationError) -> dict[str, str]:
 
 def _validate_form_fields(
     *,
+    title: str,
     first_name: str,
     last_name: str,
     zip_code: str,
@@ -176,6 +197,15 @@ def _validate_form_fields(
     """
     field_errors: dict[str, str] = {}
     parsed: dict[str, object] = {}
+
+    # --- Title (optional salutation) -------------------------------------
+    title_trimmed = (title or "").strip()
+    if not title_trimmed:
+        parsed["title"] = ""
+    elif title_trimmed not in ALLOWED_TITLES:
+        field_errors["title"] = "Please select a valid Title"
+    else:
+        parsed["title"] = title_trimmed
 
     # --- Text inputs: first/last name (AC-1, AC-2, AC-4, AC-5) -----------
     for fname, raw in (("first_name", first_name), ("last_name", last_name)):
@@ -293,6 +323,7 @@ async def about(request: Request) -> HTMLResponse:
 @app.post("/quote", response_class=HTMLResponse)
 async def quote_form(
     request: Request,
+    title: str = Form(""),
     first_name: str = Form(""),
     last_name: str = Form(""),
     gender: str = Form(""),
@@ -305,6 +336,7 @@ async def quote_form(
     age: str = Form(""),
 ) -> HTMLResponse:
     submitted = {
+        "title": title,
         "first_name": first_name,
         "last_name": last_name,
         "zip_code": zip_code,
@@ -318,6 +350,7 @@ async def quote_form(
 
     # AC-1..AC-5: server-side field-level validation across every required input.
     field_errors, parsed = _validate_form_fields(
+        title=title,
         first_name=first_name,
         last_name=last_name,
         zip_code=zip_code,
@@ -352,6 +385,7 @@ async def quote_form(
 
     try:
         req = QuoteRequest(
+            title=parsed.get("title", ""),  # type: ignore[arg-type]
             first_name=parsed["first_name"],  # type: ignore[arg-type]
             last_name=parsed["last_name"],  # type: ignore[arg-type]
             age=derived_age,
@@ -406,9 +440,11 @@ async def api_quote(
     coverage_amount: float,
     term_years: int,
     zip_code: str = "",
+    title: str = "",
 ) -> JSONResponse:
     try:
         req = QuoteRequest(
+            title=title,
             first_name=first_name,
             last_name=last_name,
             age=age,
