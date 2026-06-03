@@ -24,6 +24,27 @@
 {% endif %}
 
 <form class="quote-form" method="post" action="/quote" novalidate data-testid="quote-form">
+  <div class="field">
+    <label for="title">Title</label>
+    <select
+      id="title"
+      name="title"
+      autocomplete="honorific-prefix"
+      {% if field_errors.get('title') %}aria-invalid="true" aria-describedby="title-error"{% endif %}
+      data-testid="title"
+    >
+      <option value="" {% if not submitted.get('title') %}selected{% endif %}>Select…</option>
+      <option value="Mr" {% if submitted.get('title') == 'Mr' %}selected{% endif %}>Mr</option>
+      <option value="Mrs" {% if submitted.get('title') == 'Mrs' %}selected{% endif %}>Mrs</option>
+      <option value="Miss" {% if submitted.get('title') == 'Miss' %}selected{% endif %}>Miss</option>
+      <option value="Ms" {% if submitted.get('title') == 'Ms' %}selected{% endif %}>Ms</option>
+      <option value="Dr" {% if submitted.get('title') == 'Dr' %}selected{% endif %}>Dr</option>
+    </select>
+    {% if field_errors.get('title') %}
+    <p class="field-error" id="title-error" data-testid="title-error">{{ field_errors['title'] }}</p>
+    {% endif %}
+  </div>
+
   <div class="grid-2">
     <div class="field">
       <label for="first_name">First name</label>
@@ -323,7 +344,7 @@
     if (!form) return;
 
     var FIELD_IDS = [
-      'first_name', 'last_name', 'zip_code', 'dob',
+      'title', 'first_name', 'last_name', 'zip_code', 'dob',
       'gender', 'smoker', 'health',
       'coverage_amount', 'term_years',
     ];

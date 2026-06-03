@@ -23,11 +23,13 @@ class QuoteInput:
     health: HealthRating
     coverage_amount: float
     term_years: int
+    title: str = ""
 
     @property
     def full_name(self) -> str:
         """Convenience: combined display name (kept for templates / logs)."""
-        return f"{self.first_name} {self.last_name}".strip()
+        parts = [self.title, self.first_name, self.last_name]
+        return " ".join(p for p in (p.strip() for p in parts) if p)
 
 
 @dataclass(frozen=True)
