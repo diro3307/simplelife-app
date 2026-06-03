@@ -333,8 +333,12 @@
     dobEl.addEventListener('input', update);
     dobEl.addEventListener('change', update);
     dobEl.addEventListener('blur', update);
-    // Initial paint in case the field is pre-populated.
-    update();
+    // Initial paint in case the field is pre-populated. Skip when the field
+    // is empty so we don't clobber a server-rendered "DOB is required" error
+    // (issue #36 — flaky dob-error visibility on submit).
+    if ((dobEl.value || '').trim() !== '') {
+      update();
+    }
   })();
 
   // AC-6 / AC-7: focus the first invalid field on render, and clear each
