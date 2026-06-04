@@ -24,28 +24,27 @@
 {% endif %}
 
 <form class="quote-form" method="post" action="/quote" novalidate data-testid="quote-form">
-  <div class="field">
-    <label for="title">Title</label>
-    <select
-      id="title"
-      name="title"
-      autocomplete="honorific-prefix"
-      {% if field_errors.get('title') %}aria-invalid="true" aria-describedby="title-error"{% endif %}
-      data-testid="title"
-    >
-      <option value="" {% if not submitted.get('title') %}selected{% endif %}>Select…</option>
-      <option value="Mr" {% if submitted.get('title') == 'Mr' %}selected{% endif %}>Mr</option>
-      <option value="Mrs" {% if submitted.get('title') == 'Mrs' %}selected{% endif %}>Mrs</option>
-      <option value="Miss" {% if submitted.get('title') == 'Miss' %}selected{% endif %}>Miss</option>
-      <option value="Ms" {% if submitted.get('title') == 'Ms' %}selected{% endif %}>Ms</option>
-      <option value="Dr" {% if submitted.get('title') == 'Dr' %}selected{% endif %}>Dr</option>
-    </select>
-    {% if field_errors.get('title') %}
-    <p class="field-error" id="title-error" data-testid="title-error">{{ field_errors['title'] }}</p>
-    {% endif %}
-  </div>
-
-  <div class="grid-3">
+  <div class="grid-name">
+    <div class="field">
+      <label for="title">Title</label>
+      <select
+        id="title"
+        name="title"
+        autocomplete="honorific-prefix"
+        {% if field_errors.get('title') %}aria-invalid="true" aria-describedby="title-error"{% endif %}
+        data-testid="title"
+      >
+        <option value="" {% if not submitted.get('title') %}selected{% endif %}>Select…</option>
+        <option value="Mr" {% if submitted.get('title') == 'Mr' %}selected{% endif %}>Mr</option>
+        <option value="Mrs" {% if submitted.get('title') == 'Mrs' %}selected{% endif %}>Mrs</option>
+        <option value="Miss" {% if submitted.get('title') == 'Miss' %}selected{% endif %}>Miss</option>
+        <option value="Ms" {% if submitted.get('title') == 'Ms' %}selected{% endif %}>Ms</option>
+        <option value="Dr" {% if submitted.get('title') == 'Dr' %}selected{% endif %}>Dr</option>
+      </select>
+      {% if field_errors.get('title') %}
+      <p class="field-error" id="title-error" data-testid="title-error">{{ field_errors['title'] }}</p>
+      {% endif %}
+    </div>
     <div class="field">
       <label for="first_name">First name</label>
       <input
@@ -63,24 +62,6 @@
       />
       {% if field_errors.get('first_name') %}
       <p class="field-error" id="first_name-error" data-testid="first_name-error">{{ field_errors['first_name'] }}</p>
-      {% endif %}
-    </div>
-    <div class="field">
-      <label for="middle_name">Middle name <span class="field-optional">(optional)</span></label>
-      <input
-        id="middle_name"
-        name="middle_name"
-        type="text"
-        maxlength="50"
-        autocomplete="additional-name"
-        spellcheck="false"
-        pattern="^[A-Za-zÀ-ɏḀ-ỿ' \-]+$"
-        value="{{ submitted.get('middle_name', '') }}"
-        {% if field_errors.get('middle_name') %}aria-invalid="true" aria-describedby="middle_name-error"{% endif %}
-        data-testid="middle_name"
-      />
-      {% if field_errors.get('middle_name') %}
-      <p class="field-error" id="middle_name-error" data-testid="middle_name-error">{{ field_errors['middle_name'] }}</p>
       {% endif %}
     </div>
     <div class="field">
@@ -102,6 +83,25 @@
       <p class="field-error" id="last_name-error" data-testid="last_name-error">{{ field_errors['last_name'] }}</p>
       {% endif %}
     </div>
+  </div>
+
+  <div class="field">
+    <label for="middle_name">Middle name <span class="field-optional">(optional)</span></label>
+    <input
+      id="middle_name"
+      name="middle_name"
+      type="text"
+      maxlength="50"
+      autocomplete="additional-name"
+      spellcheck="false"
+      pattern="^[A-Za-zÀ-ɏḀ-ỿ' \-]+$"
+      value="{{ submitted.get('middle_name', '') }}"
+      {% if field_errors.get('middle_name') %}aria-invalid="true" aria-describedby="middle_name-error"{% endif %}
+      data-testid="middle_name"
+    />
+    {% if field_errors.get('middle_name') %}
+    <p class="field-error" id="middle_name-error" data-testid="middle_name-error">{{ field_errors['middle_name'] }}</p>
+    {% endif %}
   </div>
 
   <div class="field">

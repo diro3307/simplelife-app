@@ -104,9 +104,16 @@ body {
   gap: 16px;
 }
 
+.grid-name {
+  display: grid;
+  grid-template-columns: 120px 1fr 1fr;
+  gap: 16px;
+}
+
 @media (max-width: 560px) {
   .grid-2,
-  .grid-3 {
+  .grid-3,
+  .grid-name {
     grid-template-columns: 1fr;
   }
 }
