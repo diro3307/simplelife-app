@@ -3,7 +3,7 @@
 {% block content %}
 <section class="quote-result" data-testid="quote-result">
   <h1>Your Illustrative Quote</h1>
-  <p class="lede">Hello <strong data-testid="applicant-name">{% if applicant.title %}{{ applicant.title }} {% endif %}{{ applicant.first_name }} {{ applicant.last_name }}</strong> — here's your estimate.</p>
+  <p class="lede">Hello <strong data-testid="applicant-name">{% if applicant.title %}{{ applicant.title }} {% endif %}{{ applicant.first_name }}{% if applicant.middle_name %} {{ applicant.middle_name }}{% endif %} {{ applicant.last_name }}</strong> — here's your estimate.</p>
 
   <div class="quote-card">
     <div class="quote-row">

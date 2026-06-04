@@ -28,10 +28,17 @@ _ZIP_RE = re.compile(r"^\d{5}(-\d{4})?$")
 # ISO Date of Birth: YYYY-MM-DD.
 _DOB_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
 
+# Allowed pattern for name-style free-text fields: letters (including
+# accented), spaces, hyphens, and apostrophes. Used for the optional
+# Middle Name (issue #40) so users can enter values like "Jean-Paul",
+# "D'Angelo", or "Mary Ann" without tripping validation.
+_NAME_RE = re.compile(r"^[A-Za-zÀ-ɏḀ-ỿ' \-]+$")
+
 # Human-readable labels used in field-level validation messages.
 FIELD_LABELS: dict[str, str] = {
     "title": "Title",
     "first_name": "First name",
+    "middle_name": "Middle name",
     "last_name": "Last name",
     "zip_code": "Zip Code",
     "dob": "Date of Birth",
@@ -54,6 +61,7 @@ ALLOWED_TITLES: frozenset[str] = frozenset({"Mr", "Mrs", "Miss", "Ms", "Dr"})
 # Allowed maximum lengths for free-text fields (AC-4).
 TEXT_MAX_LENGTHS: dict[str, int] = {
     "first_name": 50,
+    "middle_name": 50,
     "last_name": 50,
     "zip_code": 10,
 }
@@ -100,6 +108,7 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 class QuoteRequest(BaseModel):
     title: str = Field(default="", max_length=10)
     first_name: str = Field(min_length=1, max_length=50)
+    middle_name: str = Field(default="", max_length=50)
     last_name: str = Field(min_length=1, max_length=50)
     age: int = Field(ge=18, le=75)
     gender: str = Field(pattern="^(male|female|other)$")
@@ -119,6 +128,23 @@ class QuoteRequest(BaseModel):
             raise ValueError("must not be empty or whitespace-only")
         if len(trimmed) > 50:
             raise ValueError("must be 50 characters or fewer")
+        return trimmed
+
+    @field_validator("middle_name")
+    @classmethod
+    def _validate_middle_name(cls, value: str) -> str:
+        # Optional: empty / whitespace-only is fine.
+        if value is None:
+            return ""
+        trimmed = value.strip()
+        if not trimmed:
+            return ""
+        if len(trimmed) > 50:
+            raise ValueError("Middle name must be 50 characters or fewer")
+        if not _NAME_RE.match(trimmed):
+            raise ValueError(
+                "Middle name may only contain letters, spaces, hyphens, and apostrophes"
+            )
         return trimmed
 
     @field_validator("zip_code")
@@ -153,6 +179,7 @@ class QuoteRequest(BaseModel):
         return QuoteInput(
             title=self.title,
             first_name=self.first_name,
+            middle_name=self.middle_name,
             last_name=self.last_name,
             age=self.age,
             gender=self.gender,  # type: ignore[arg-type]
@@ -188,6 +215,7 @@ def _validate_form_fields(
     health: str,
     coverage_amount: str,
     term_years: str,
+    middle_name: str = "",
 ) -> tuple[dict[str, str], dict[str, object]]:
     """Run field-level validation across every required field on the quote form.
 
@@ -222,6 +250,21 @@ def _validate_form_fields(
             )
             continue
         parsed[fname] = trimmed
+
+    # --- Middle name (optional, issue #40) -------------------------------
+    middle_trimmed = (middle_name or "").strip()
+    if not middle_trimmed:
+        parsed["middle_name"] = ""
+    elif len(middle_trimmed) > TEXT_MAX_LENGTHS["middle_name"]:
+        field_errors["middle_name"] = (
+            "Middle name must be 50 characters or fewer"
+        )
+    elif not _NAME_RE.match(middle_trimmed):
+        field_errors["middle_name"] = (
+            "Middle name may only contain letters, spaces, hyphens, and apostrophes"
+        )
+    else:
+        parsed["middle_name"] = middle_trimmed
 
     # --- Zip Code (AC-1, AC-2, AC-4) -------------------------------------
     zip_trimmed = (zip_code or "").strip()
@@ -325,6 +368,7 @@ async def quote_form(
     request: Request,
     title: str = Form(""),
     first_name: str = Form(""),
+    middle_name: str = Form(""),
     last_name: str = Form(""),
     gender: str = Form(""),
     smoker: str = Form(""),
@@ -338,6 +382,7 @@ async def quote_form(
     submitted = {
         "title": title,
         "first_name": first_name,
+        "middle_name": middle_name,
         "last_name": last_name,
         "zip_code": zip_code,
         "dob": dob,
@@ -352,6 +397,7 @@ async def quote_form(
     field_errors, parsed = _validate_form_fields(
         title=title,
         first_name=first_name,
+        middle_name=middle_name,
         last_name=last_name,
         zip_code=zip_code,
         dob=dob,
@@ -387,6 +433,7 @@ async def quote_form(
         req = QuoteRequest(
             title=parsed.get("title", ""),  # type: ignore[arg-type]
             first_name=parsed["first_name"],  # type: ignore[arg-type]
+            middle_name=parsed.get("middle_name", ""),  # type: ignore[arg-type]
             last_name=parsed["last_name"],  # type: ignore[arg-type]
             age=derived_age,
             gender=parsed["gender"],  # type: ignore[arg-type]
@@ -441,11 +488,13 @@ async def api_quote(
     term_years: int,
     zip_code: str = "",
     title: str = "",
+    middle_name: str = "",
 ) -> JSONResponse:
     try:
         req = QuoteRequest(
             title=title,
             first_name=first_name,
+            middle_name=middle_name,
             last_name=last_name,
             age=age,
             gender=gender,

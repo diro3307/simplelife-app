@@ -45,7 +45,7 @@
     {% endif %}
   </div>
 
-  <div class="grid-2">
+  <div class="grid-3">
     <div class="field">
       <label for="first_name">First name</label>
       <input
@@ -63,6 +63,24 @@
       />
       {% if field_errors.get('first_name') %}
       <p class="field-error" id="first_name-error" data-testid="first_name-error">{{ field_errors['first_name'] }}</p>
+      {% endif %}
+    </div>
+    <div class="field">
+      <label for="middle_name">Middle name <span class="field-optional">(optional)</span></label>
+      <input
+        id="middle_name"
+        name="middle_name"
+        type="text"
+        maxlength="50"
+        autocomplete="additional-name"
+        spellcheck="false"
+        pattern="^[A-Za-zÀ-ɏḀ-ỿ' \-]+$"
+        value="{{ submitted.get('middle_name', '') }}"
+        {% if field_errors.get('middle_name') %}aria-invalid="true" aria-describedby="middle_name-error"{% endif %}
+        data-testid="middle_name"
+      />
+      {% if field_errors.get('middle_name') %}
+      <p class="field-error" id="middle_name-error" data-testid="middle_name-error">{{ field_errors['middle_name'] }}</p>
       {% endif %}
     </div>
     <div class="field">
@@ -348,7 +366,7 @@
     if (!form) return;
 
     var FIELD_IDS = [
-      'title', 'first_name', 'last_name', 'zip_code', 'dob',
+      'title', 'first_name', 'middle_name', 'last_name', 'zip_code', 'dob',
       'gender', 'smoker', 'health',
       'coverage_amount', 'term_years',
     ];
