@@ -24,11 +24,16 @@ class QuoteInput:
     coverage_amount: float
     term_years: int
     title: str = ""
+    middle_name: str = ""
 
     @property
     def full_name(self) -> str:
-        """Convenience: combined display name (kept for templates / logs)."""
-        parts = [self.title, self.first_name, self.last_name]
+        """Convenience: combined display name (kept for templates / logs).
+
+        Middle name is included between first and last when present so the
+        result reads "First Middle Last" (gracefully omitted when absent).
+        """
+        parts = [self.title, self.first_name, self.middle_name, self.last_name]
         return " ".join(p for p in (p.strip() for p in parts) if p)
 
 

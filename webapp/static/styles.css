@@ -98,10 +98,23 @@ body {
   gap: 16px;
 }
 
+.grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
 @media (max-width: 560px) {
-  .grid-2 {
+  .grid-2,
+  .grid-3 {
     grid-template-columns: 1fr;
   }
+}
+
+.field-optional {
+  font-weight: 400;
+  color: var(--muted, #6b7280);
+  font-size: 0.85rem;
 }
 
 .field input[aria-invalid="true"] {
