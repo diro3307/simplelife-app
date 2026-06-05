@@ -25,6 +25,8 @@ class QuoteInput:
     term_years: int
     title: str = ""
     middle_name: str = ""
+    height_cm: float | None = None
+    weight_kg: float | None = None
 
     @property
     def full_name(self) -> str:
