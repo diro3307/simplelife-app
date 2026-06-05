@@ -228,6 +228,51 @@
 
   <div class="grid-2">
     <div class="field">
+      <label for="height_cm">Height (cm) <span class="field-required" aria-hidden="true">*</span></label>
+      <input
+        id="height_cm"
+        name="height_cm"
+        type="text"
+        required
+        inputmode="decimal"
+        autocomplete="off"
+        spellcheck="false"
+        pattern="^[0-9]+(\.[0-9])?$"
+        placeholder="e.g. 175"
+        value="{{ submitted.get('height_cm', '') }}"
+        aria-required="true"
+        {% if field_errors.get('height_cm') %}aria-invalid="true" aria-describedby="height_cm-error"{% endif %}
+        data-testid="height_cm"
+      />
+      {% if field_errors.get('height_cm') %}
+      <p class="field-error" id="height_cm-error" data-testid="height_cm-error">{{ field_errors['height_cm'] }}</p>
+      {% endif %}
+    </div>
+    <div class="field">
+      <label for="weight_kg">Weight (kg) <span class="field-required" aria-hidden="true">*</span></label>
+      <input
+        id="weight_kg"
+        name="weight_kg"
+        type="text"
+        required
+        inputmode="decimal"
+        autocomplete="off"
+        spellcheck="false"
+        pattern="^[0-9]+(\.[0-9])?$"
+        placeholder="e.g. 72.5"
+        value="{{ submitted.get('weight_kg', '') }}"
+        aria-required="true"
+        {% if field_errors.get('weight_kg') %}aria-invalid="true" aria-describedby="weight_kg-error"{% endif %}
+        data-testid="weight_kg"
+      />
+      {% if field_errors.get('weight_kg') %}
+      <p class="field-error" id="weight_kg-error" data-testid="weight_kg-error">{{ field_errors['weight_kg'] }}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="field">
       <label for="coverage_amount">Coverage amount (USD)</label>
       <input
         id="coverage_amount"
@@ -368,6 +413,7 @@
     var FIELD_IDS = [
       'title', 'first_name', 'middle_name', 'last_name', 'zip_code', 'dob',
       'gender', 'smoker', 'health',
+      'height_cm', 'weight_kg',
       'coverage_amount', 'term_years',
     ];
 

@@ -28,6 +28,18 @@ _ZIP_RE = re.compile(r"^\d{5}(-\d{4})?$")
 # ISO Date of Birth: YYYY-MM-DD.
 _DOB_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
 
+# Strict ASCII decimal with at most one fractional digit (issue #39).
+# Rejects: unicode digits (१७५, １７５), suffixes (175cm), commas (1,75),
+# negative or leading "+", and anything with more than 1 decimal place.
+_MEASUREMENT_RE = re.compile(r"^[0-9]+(\.[0-9])?$")
+
+# Height (cm) and Weight (kg) allowed ranges per BA acceptance criteria
+# (issue #39): height 50-272, weight 2-500.
+HEIGHT_MIN_CM = 50.0
+HEIGHT_MAX_CM = 272.0
+WEIGHT_MIN_KG = 2.0
+WEIGHT_MAX_KG = 500.0
+
 # Allowed pattern for name-style free-text fields: letters (including
 # accented), spaces, hyphens, and apostrophes. Used for the optional
 # Middle Name (issue #40) so users can enter values like "Jean-Paul",
@@ -47,6 +59,8 @@ FIELD_LABELS: dict[str, str] = {
     "health": "Health rating",
     "coverage_amount": "Coverage amount",
     "term_years": "Term length",
+    "height_cm": "Height",
+    "weight_kg": "Weight",
 }
 
 # Fields rendered as <select>/dropdown that get a "Please select…" message
@@ -117,6 +131,8 @@ class QuoteRequest(BaseModel):
     coverage_amount: float = Field(ge=10_000, le=5_000_000)
     term_years: int = Field()
     zip_code: str = Field()
+    height_cm: float | None = Field(default=None, ge=HEIGHT_MIN_CM, le=HEIGHT_MAX_CM)
+    weight_kg: float | None = Field(default=None, ge=WEIGHT_MIN_KG, le=WEIGHT_MAX_KG)
 
     @field_validator("first_name", "last_name")
     @classmethod
@@ -187,6 +203,8 @@ class QuoteRequest(BaseModel):
             health=self.health,  # type: ignore[arg-type]
             coverage_amount=self.coverage_amount,
             term_years=self.term_years,
+            height_cm=self.height_cm,
+            weight_kg=self.weight_kg,
         )
 
 
@@ -203,6 +221,37 @@ def _per_field_errors(exc: ValidationError) -> dict[str, str]:
     return errors
 
 
+def _validate_measurement(
+    raw: str, *, label: str, unit: str, lo: float, hi: float
+) -> tuple[float | None, str | None]:
+    """Validate a numeric measurement (issue #39: height/weight).
+
+    Rules per BA acceptance criteria:
+      - Trim surrounding whitespace; empty/whitespace-only → "Required".
+      - Must match strict ASCII pattern: digits, with at most ONE decimal place.
+        Rejects unicode digits, comma decimals, unit suffixes (e.g. "175cm"),
+        negative numbers, leading "+", overly long inputs.
+      - Must fall within [lo, hi]; otherwise show the allowed range.
+    Returns (parsed_value | None, error_message | None).
+    """
+    trimmed = (raw or "").strip()
+    if not trimmed:
+        return None, "Required"
+    range_msg = (
+        f"{label} must be a number between {lo:g} and {hi:g} {unit} "
+        "(up to 1 decimal place)"
+    )
+    if not _MEASUREMENT_RE.match(trimmed):
+        return None, range_msg
+    try:
+        value = float(trimmed)
+    except ValueError:
+        return None, range_msg
+    if value < lo or value > hi:
+        return None, range_msg
+    return value, None
+
+
 def _validate_form_fields(
     *,
     title: str,
@@ -216,6 +265,8 @@ def _validate_form_fields(
     coverage_amount: str,
     term_years: str,
     middle_name: str = "",
+    height_cm: str = "",
+    weight_kg: str = "",
 ) -> tuple[dict[str, str], dict[str, object]]:
     """Run field-level validation across every required field on the quote form.
 
@@ -350,6 +401,25 @@ def _validate_form_fields(
             else:
                 parsed["coverage_amount"] = cov_float
 
+    # --- Height (cm) / Weight (kg) — issue #39 -------------------------
+    h_val, h_err = _validate_measurement(
+        height_cm, label="Height", unit="cm",
+        lo=HEIGHT_MIN_CM, hi=HEIGHT_MAX_CM,
+    )
+    if h_err:
+        field_errors["height_cm"] = h_err
+    else:
+        parsed["height_cm"] = h_val
+
+    w_val, w_err = _validate_measurement(
+        weight_kg, label="Weight", unit="kg",
+        lo=WEIGHT_MIN_KG, hi=WEIGHT_MAX_KG,
+    )
+    if w_err:
+        field_errors["weight_kg"] = w_err
+    else:
+        parsed["weight_kg"] = w_val
+
     return field_errors, parsed
 
 
@@ -378,6 +448,8 @@ async def quote_form(
     zip_code: str = Form(""),
     dob: str = Form(""),
     age: str = Form(""),
+    height_cm: str = Form(""),
+    weight_kg: str = Form(""),
 ) -> HTMLResponse:
     submitted = {
         "title": title,
@@ -391,6 +463,8 @@ async def quote_form(
         "health": health,
         "coverage_amount": coverage_amount,
         "term_years": term_years,
+        "height_cm": height_cm,
+        "weight_kg": weight_kg,
     }
 
     # AC-1..AC-5: server-side field-level validation across every required input.
@@ -406,6 +480,8 @@ async def quote_form(
         health=health,
         coverage_amount=coverage_amount,
         term_years=term_years,
+        height_cm=height_cm,
+        weight_kg=weight_kg,
     )
 
     if field_errors:
@@ -442,6 +518,8 @@ async def quote_form(
             coverage_amount=parsed["coverage_amount"],  # type: ignore[arg-type]
             term_years=parsed["term_years"],  # type: ignore[arg-type]
             zip_code=parsed["zip_code"],  # type: ignore[arg-type]
+            height_cm=parsed.get("height_cm"),  # type: ignore[arg-type]
+            weight_kg=parsed.get("weight_kg"),  # type: ignore[arg-type]
         )
         result = calculate_quote(req.to_engine_input())
     except ValidationError as exc:
@@ -489,6 +567,8 @@ async def api_quote(
     zip_code: str = "",
     title: str = "",
     middle_name: str = "",
+    height_cm: float | None = None,
+    weight_kg: float | None = None,
 ) -> JSONResponse:
     try:
         req = QuoteRequest(
@@ -503,6 +583,8 @@ async def api_quote(
             coverage_amount=coverage_amount,
             term_years=term_years,
             zip_code=zip_code,
+            height_cm=height_cm,
+            weight_kg=weight_kg,
         )
         result = calculate_quote(req.to_engine_input())
     except (ValidationError, ValueError) as exc:

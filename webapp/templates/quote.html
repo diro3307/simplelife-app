@@ -22,6 +22,18 @@
       <span class="label">Term</span>
       <span class="value" data-testid="term-display">{{ result.term_years }} years</span>
     </div>
+    {% if applicant.height_cm is not none %}
+    <div class="quote-row">
+      <span class="label">Height</span>
+      <span class="value" data-testid="height-display">{{ applicant.height_cm }} cm</span>
+    </div>
+    {% endif %}
+    {% if applicant.weight_kg is not none %}
+    <div class="quote-row">
+      <span class="label">Weight</span>
+      <span class="value" data-testid="weight-display">{{ applicant.weight_kg }} kg</span>
+    </div>
+    {% endif %}
     <div class="quote-row">
       <span class="label">Risk multiplier</span>
       <span class="value" data-testid="risk-score">{{ result.risk_score }}</span>
